@@ -131,7 +131,7 @@ where
             for request in requests {
                 let response = (self.handler)(&request);
 
-                match write!(stream, "{}", response) {
+                match response.build().and_then(|response| stream.write_all(&response)) {
                     Ok(_) => trace!("Written to id {}", stream.id()),
                     Err(e) => trace!("Error({}) when writing to connection {}", e, stream.id()),
                 }

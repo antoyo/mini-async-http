@@ -3,7 +3,7 @@ use crate::http::Headers;
 use crate::http::Version;
 use crate::response::Reason;
 
-use std::fmt;
+use std::io::{self, Write};
 
 /// Represent an HTTP response
 #[derive(Debug, PartialEq)]
@@ -13,28 +13,6 @@ pub struct Response {
     pub version: Version,
     pub headers: Headers,
     pub body: Option<Vec<u8>>,
-}
-
-impl fmt::Display for Response {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut buf = String::new();
-
-        buf.push_str(format!("{} {} {}", self.version.as_str(), self.code, self.reason).as_str());
-        buf.push_str("\r\n");
-
-        self.headers
-            .iter()
-            .for_each(|(key, value)| buf.push_str(format!("{}: {}\r\n", key, value).as_str()));
-
-        buf.push_str("\r\n");
-
-        match &self.body_as_string() {
-            Some(body) => buf.push_str(body.as_str()),
-            None => {}
-        };
-
-        write!(f, "{}", buf)
-    }
 }
 
 impl Response {
@@ -72,6 +50,23 @@ impl Response {
             },
             None => None,
         }
+    }
+
+    pub fn build(&self) -> io::Result<Vec<u8>> {
+        let mut buf = vec![];
+        write!(buf, "{} {} {}\r\n", self.version.as_str(), self.code, self.reason)?;
+
+        for (key, value) in self.headers.iter() {
+            write!(buf, "{}: {}\r\n", key, value)?;
+        }
+
+        write!(buf, "\r\n")?;
+
+        if let Some(body) = self.body() {
+            buf.extend(body);
+        }
+
+        Ok(buf)
     }
 }
 
